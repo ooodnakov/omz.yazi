@@ -27,11 +27,17 @@ end)
 -- starting up (version-manager banners, framework notices), so only the prompt
 -- line reaches the header.
 local render_script = [==[
+if (( ${#precmd_functions} )); then
+  for __omz_hook in ${precmd_functions[@]}; do
+    (( $+functions[$__omz_hook] )) && $__omz_hook >/dev/null 2>&1
+  done
+  unset __omz_hook
+fi
 if [[ -z "${PROMPT}" || "${PROMPT}" == *'%m%# '* ]]; then
   [[ -r "${ZSH}/themes/${ZSH_THEME}.zsh-theme" ]] && source "${ZSH}/themes/${ZSH_THEME}.zsh-theme" >/dev/null 2>&1
 fi
 print -rn -- $'\x01OMZSTART\x01'
-print -P -- "${PROMPT}"
+print -rn -- ${(%%)PROMPT}
 print -rn -- $'\x01OMZEND\x01'
 ]==]
 
@@ -43,10 +49,14 @@ local function default_shell()
 	return "zsh"
 end
 
+local function strip_ansi(text)
+	return (text:gsub("\27%[[%d;?]*%a", ""))
+end
+
 local function prompt_line(stdout)
 	local body = stdout:match("\1OMZSTART\1(.-)\1OMZEND\1") or stdout
 	for line in body:gsub("\r", ""):gmatch("[^\n]+") do
-		if line:match("%S") then
+		if strip_ansi(line):match("%S") then
 			return (line:gsub("%s+$", ""))
 		end
 	end
